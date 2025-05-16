@@ -7,7 +7,7 @@ import { generateInitialCards } from '@/lib/initial-cards';
 import CreepyCardDisplay from '@/components/creepy-card';
 import AddCardModal from '@/components/add-card-modal';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, HomeIcon, Ghost, Shuffle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, HomeIcon, Ghost, Shuffle, Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from "@/hooks/use-toast";
 import { generateCreepyImage } from '@/ai/flows/generate-creepy-image';
@@ -32,22 +32,28 @@ export default function HomePage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [animationKey, setAnimationKey] = useState(0);
   const [isLoadingInitialCards, setIsLoadingInitialCards] = useState(true);
-  const [isGeneratingBatch, setIsGeneratingBatch] = useState(false);
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState(loadingMessages[0]);
   const { toast } = useToast();
+
+  const [isGeneratingSingleImage, setIsGeneratingSingleImage] = useState(false);
+  const [singleImageLoadingId, setSingleImageLoadingId] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (isLoadingInitialCards && cards.length === 0) {
       const intervalId = setInterval(() => {
         setCurrentLoadingMessage(loadingMessages[Math.floor(Math.random() * loadingMessages.length)]);
-      }, 5000); 
+      }, 5000);
       return () => clearInterval(intervalId);
     }
   }, [isLoadingInitialCards, cards.length]);
 
   const loadCoreCards = useCallback(async (isShuffleOp = false) => {
-    const initialGeneratedCards = await generateInitialCards();
+    setIsLoadingInitialCards(true); // Ensure loading state is true at the beginning
+    setCurrentLoadingMessage(loadingMessages[Math.floor(Math.random() * loadingMessages.length)]);
     
+    const initialGeneratedCards = await generateInitialCards();
+
     let userCards: CreepyCard[] = [];
     if (isBrowser && !isShuffleOp) {
         const storedUserCards = localStorage.getItem('creepyUserCards');
@@ -57,11 +63,11 @@ export default function HomePage() {
             userCards = parsedUserCards.map(card => ({...card, imageGenerated: card.imageGenerated ?? true }));
           } catch (e) {
             console.error("Failed to parse user cards from localStorage", e);
-            localStorage.removeItem('creepyUserCards'); 
+            localStorage.removeItem('creepyUserCards');
           }
         }
       }
-    
+
     setCards(isShuffleOp ? initialGeneratedCards : [...initialGeneratedCards, ...userCards]);
     setIsLoadingInitialCards(false);
     setCurrentIndex(0);
@@ -88,164 +94,122 @@ export default function HomePage() {
 
 
   useEffect(() => {
-    setIsLoadingInitialCards(true);
     loadCoreCards(false);
   }, [loadCoreCards]);
 
 
   useEffect(() => {
-    if (isBrowser && !isLoadingInitialCards) { 
+    if (isBrowser && !isLoadingInitialCards) {
       const userCardsToSave = cards.filter(card => card.isAIGenerated && !card.id.startsWith('initial-'));
       localStorage.setItem('creepyUserCards', JSON.stringify(userCardsToSave));
     }
   }, [cards, isLoadingInitialCards]);
 
-  useEffect(() => {
-    const generateNextBatchIfNeeded = async () => {
-      if (isLoadingInitialCards || isGeneratingBatch || !cards.length) return;
-
-      const lookAheadDistance = 3; 
-      let needsGeneration = false;
-      let firstCardNeedingGenerationIndex = -1;
-
-      for (let i = 0; i <= lookAheadDistance; i++) {
-        const checkIndex = currentIndex + i;
-        if (checkIndex < cards.length) {
-          const cardToCheck = cards[checkIndex];
-          if (cardToCheck && !cardToCheck.imageGenerated && cardToCheck.imageUrl.startsWith('https://placehold.co')) {
-            needsGeneration = true;
-            firstCardNeedingGenerationIndex = cards.findIndex(c => c && !c.imageGenerated && c.imageUrl.startsWith('https://placehold.co'));
-            break;
-          }
-        }
-      }
-
-      if (needsGeneration && firstCardNeedingGenerationIndex !== -1) {
-        setIsGeneratingBatch(true);
-        try {
-          const batchSize = 3; 
-          const updatedCards = [...cards];
-          let generatedCount = 0;
-
-          for (let i = 0; i < batchSize; i++) {
-            const cardIndexToProcess = firstCardNeedingGenerationIndex + i;
-            if (cardIndexToProcess >= updatedCards.length) break;
-
-            const card = updatedCards[cardIndexToProcess];
-            if (card && !card.imageGenerated && card.imageUrl.startsWith('https://placehold.co')) {
-              try {
-                const imageResult = await generateCreepyImage({ prompt: card.phrase });
-                updatedCards[cardIndexToProcess] = {
-                  ...card,
-                  imageUrl: imageResult.imageDataUri,
-                  isAIGenerated: true,
-                  imageGenerated: true,
-                };
-                generatedCount++;
-              } catch (error) {
-                console.error(`Failed to generate image for card "${card.phrase}" in batch:`, error);
-                // Mark as generated even on failure to avoid retrying indefinitely for this session
-                updatedCards[cardIndexToProcess] = { ...card, imageGenerated: true, imageUrl: card.imageUrl || 'https://placehold.co/600x400.png' }; 
-              }
-            }
-          }
-          
-          setCards(updatedCards);
-
-          if (generatedCount > 0) {
-            toast({
-              title: "More Entities Have Manifested",
-              description: `${generatedCount} new card images materialized.`,
-            });
-          }
-          
-        } catch (e) {
-          console.error("Unexpected error during batch image generation:", e);
-          toast({
-            title: "Spiritual Interference",
-            description: "An unexpected issue occurred while conjuring images. Please try again later.",
-            variant: "destructive",
-          });
-        } finally {
-          setIsGeneratingBatch(false);
-        }
-      }
-    };
-
-    generateNextBatchIfNeeded();
-  }, [currentIndex, cards, isLoadingInitialCards]); // Removed isGeneratingBatch from dependencies as it's handled internally
-
-
   const triggerAnimation = () => {
     setAnimationKey(prevKey => prevKey + 1);
   };
 
-  const handleNext = useCallback(() => {
-    if (isLoadingInitialCards || isGeneratingBatch || cards.length === 0) return;
-    setCurrentIndex((prevIndex) => (prevIndex + 1) % cards.length);
+  const handleNext = useCallback(async () => {
+    if (isLoadingInitialCards || isGeneratingSingleImage || cards.length === 0) return;
+
+    const nextIdx = (currentIndex + 1) % cards.length;
+    setCurrentIndex(nextIdx);
     triggerAnimation();
-  }, [cards.length, isLoadingInitialCards, isGeneratingBatch]);
+
+    const cardToLoad = cards[nextIdx];
+
+    if (cardToLoad && !cardToLoad.imageGenerated && cardToLoad.imageUrl.startsWith('https://placehold.co')) {
+      setIsGeneratingSingleImage(true);
+      setSingleImageLoadingId(cardToLoad.id);
+      try {
+        const imageResult = await generateCreepyImage({ prompt: cardToLoad.phrase });
+        setCards(prevCards =>
+          prevCards.map(card =>
+            card.id === cardToLoad.id
+              ? { ...card, imageUrl: imageResult.imageDataUri, isAIGenerated: true, imageGenerated: true }
+              : card
+          )
+        );
+        toast({
+          title: "A New Vision Materializes",
+          description: `Image for "${cardToLoad.phrase}" has been conjured.`,
+        });
+      } catch (error) {
+        console.error(`Failed to generate image for card "${cardToLoad.phrase}":`, error);
+        toast({
+          title: "Spiritual Interference",
+          description: `Could not conjure an image for "${cardToLoad.phrase}". The placeholder remains.`,
+          variant: "destructive",
+        });
+        // Mark as generated even on failure to avoid retrying this specific card indefinitely in this session
+        setCards(prevCards =>
+          prevCards.map(card =>
+            card.id === cardToLoad.id ? { ...card, imageGenerated: true, imageUrl: cardToLoad.imageUrl || 'https://placehold.co/600x400.png' } : card
+          )
+        );
+      } finally {
+        setIsGeneratingSingleImage(false);
+        setSingleImageLoadingId(null);
+      }
+    }
+  }, [currentIndex, cards, isLoadingInitialCards, isGeneratingSingleImage, toast]);
 
   const handlePrev = useCallback(() => {
-     if (cards.length === 0 || currentIndex === 0) return;
+    if (isLoadingInitialCards || isGeneratingSingleImage || cards.length === 0 || currentIndex === 0) return;
     setCurrentIndex((prevIndex) => (prevIndex - 1 + cards.length) % cards.length);
     triggerAnimation();
-  }, [cards.length, currentIndex]);
+  }, [cards.length, currentIndex, isLoadingInitialCards, isGeneratingSingleImage]);
 
   const handleGoToStart = useCallback(() => {
-    if (cards.length === 0) return;
+    if (isLoadingInitialCards || isGeneratingSingleImage || cards.length === 0) return;
     setCurrentIndex(0);
     triggerAnimation();
-  }, [cards.length]);
+  }, [cards.length, isLoadingInitialCards, isGeneratingSingleImage]);
 
   const handleAddCard = useCallback((newCardData: Omit<CreepyCard, 'id' | 'imageGenerated'>) => {
+    if (isLoadingInitialCards || isGeneratingSingleImage) return;
     const newCard: CreepyCard = {
       ...newCardData,
       id: uuidv4(),
-      imageGenerated: true, 
+      imageGenerated: true, // User-added cards have their images generated in the modal
     };
     setCards((prevCards) => {
       const updatedCards = [...prevCards, newCard];
       if (updatedCards.length === 1) {
         setCurrentIndex(0);
       } else {
-        setCurrentIndex(updatedCards.length - 1); 
+        setCurrentIndex(updatedCards.length - 1);
       }
       return updatedCards;
     });
     triggerAnimation();
-  }, []);
+  }, [isLoadingInitialCards, isGeneratingSingleImage]);
 
   const handleShuffle = useCallback(async () => {
-    if (isLoadingInitialCards) return; // Prevent re-shuffle if already shuffling
-
-    setIsLoadingInitialCards(true);
-    setCurrentLoadingMessage(loadingMessages[Math.floor(Math.random() * loadingMessages.length)]); 
-    setCards([]); 
-    setCurrentIndex(0);
-
-    if (isBrowser) {
-      localStorage.removeItem('creepyUserCards');
-    }
+    if (isLoadingInitialCards || isGeneratingSingleImage) return;
 
     toast({
       title: "Reshuffling the Horrors...",
       description: "A new deck of creepy cards is materializing.",
     });
-    
-    await loadCoreCards(true);
 
-  }, [toast, loadCoreCards, isLoadingInitialCards]);
+    if (isBrowser) {
+      localStorage.removeItem('creepyUserCards');
+    }
+    setCards([]); // Clear cards immediately for better UX
+    setCurrentIndex(0);
+    await loadCoreCards(true); // This will set setIsLoadingInitialCards
 
-  // Define disabled states for buttons
-  const disableNextButton = isLoadingInitialCards || isGeneratingBatch || cards.length === 0;
-  const disablePrevButton = cards.length === 0 || currentIndex === 0;
-  const disableStartButton = cards.length === 0;
-  const disableAddCardButton = isLoadingInitialCards; // Only disabled during full initial load/shuffle
-  const disableShuffleButton = isLoadingInitialCards; // Only disabled during full initial load/shuffle
+  }, [toast, loadCoreCards, isLoadingInitialCards, isGeneratingSingleImage]);
+
+  const disableNextButton = isLoadingInitialCards || isGeneratingSingleImage || cards.length === 0;
+  const disablePrevButton = isLoadingInitialCards || isGeneratingSingleImage || cards.length === 0 || currentIndex === 0;
+  const disableStartButton = isLoadingInitialCards || isGeneratingSingleImage || cards.length === 0;
+  const disableAddCardButton = isLoadingInitialCards || isGeneratingSingleImage;
+  const disableShuffleButton = isLoadingInitialCards || isGeneratingSingleImage;
 
 
-  if (isLoadingInitialCards || (cards.length === 0 && !isGeneratingBatch && !isLoadingInitialCards )) {
+  if (isLoadingInitialCards && cards.length === 0) { // Show full loading screen only if cards array is still empty
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-foreground">
         <Ghost className="w-20 h-20 text-primary mb-6 float-ghost" />
@@ -256,8 +220,8 @@ export default function HomePage() {
       </div>
     );
   }
-  
-  if (cards.length === 0 && !isLoadingInitialCards && !isGeneratingBatch) {
+
+  if (cards.length === 0 && !isLoadingInitialCards && !isGeneratingSingleImage) {
      return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-foreground">
         <Ghost className="w-16 h-16 text-primary mb-4" />
@@ -271,7 +235,7 @@ export default function HomePage() {
       </div>
     );
   }
-  
+
   const currentCard = cards[currentIndex] || null;
 
 
@@ -288,10 +252,16 @@ export default function HomePage() {
       <main className="flex flex-col items-center w-full">
         <div className="w-full max-w-md mb-8 h-[550px] flex items-center justify-center">
           {currentCard ? (
-            <CreepyCardDisplay key={animationKey} card={currentCard} className="h-full" />
+            <CreepyCardDisplay
+              key={animationKey}
+              card={currentCard}
+              className="h-full"
+              isCurrentlyLoadingImage={currentCard.id === singleImageLoadingId && isGeneratingSingleImage}
+            />
           ) : (
+             // This case should ideally not be hit if cards.length > 0
             <div className="w-full max-w-md h-[550px] flex items-center justify-center bg-card rounded-lg shadow-xl p-4">
-                 <p className="text-muted-foreground">Loading card...</p>
+                 <p className="text-muted-foreground">No card to display...</p>
             </div>
            )
           }
@@ -305,10 +275,10 @@ export default function HomePage() {
             <HomeIcon className="h-6 w-6 mr-2" /> Start
           </Button>
           <Button onClick={handleNext} variant="secondary" className="text-lg py-6" disabled={disableNextButton}>
-            <ArrowRight className="h-6 w-6 mr-2" /> Next
+            Next <ArrowRight className="h-6 w-6 ml-2" />
           </Button>
         </div>
-        
+
         <div className="w-full max-w-md flex justify-center gap-4">
             <AddCardModal onAddCard={handleAddCard} disabled={disableAddCardButton} />
             <Button onClick={handleShuffle} variant="outline" disabled={disableShuffleButton}>
@@ -323,4 +293,3 @@ export default function HomePage() {
     </div>
   );
 }
-
