@@ -7,7 +7,7 @@ import { generateInitialCards } from '@/lib/initial-cards';
 import CreepyCardDisplay from '@/components/creepy-card';
 import AddCardModal from '@/components/add-card-modal';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, HomeIcon, Ghost, Shuffle } from 'lucide-react'; // Added Shuffle
+import { ArrowLeft, ArrowRight, HomeIcon, Ghost, Shuffle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from "@/hooks/use-toast";
 import { generateCreepyImage } from '@/ai/flows/generate-creepy-image';
@@ -40,27 +40,22 @@ export default function HomePage() {
     if (isLoadingInitialCards && cards.length === 0) {
       const intervalId = setInterval(() => {
         setCurrentLoadingMessage(prevMessage => {
-          const currentIndex = loadingMessages.indexOf(prevMessage);
-          const nextIndex = (currentIndex + 1) % loadingMessages.length;
+          const currentIndexVal = loadingMessages.indexOf(prevMessage);
+          const nextIndex = (currentIndexVal + 1) % loadingMessages.length;
           return loadingMessages[nextIndex];
         });
-      }, 5000);
+      }, 5000); // Cycle messages every 5 seconds
       return () => clearInterval(intervalId);
     }
   }, [isLoadingInitialCards, cards.length]);
 
   const loadCoreCards = useCallback(async (isShuffle = false) => {
-    if (!isShuffle) { // Only show initial "Summoning" toast on first load, not shuffle
-      toast({
-        title: "Summoning First Horrors...",
-        description: "Generating images for the first few cards. More will materialize as you delve deeper.",
-      });
-    }
+    // Removed toast for starting generation here, handled by generateNextBatchIfNeeded
     
     const initialGeneratedCards = await generateInitialCards();
     
     let userCards: CreepyCard[] = [];
-    if (isBrowser && !isShuffle) { // Don't load user cards if shuffling
+    if (isBrowser && !isShuffle) {
         const storedUserCards = localStorage.getItem('creepyUserCards');
         if (storedUserCards) {
           try {
@@ -78,13 +73,17 @@ export default function HomePage() {
     setCurrentIndex(0);
     setAnimationKey(prevKey => prevKey + 1);
 
-
-    if (initialGeneratedCards.length > 0) {
+    if (initialGeneratedCards.length > 0 && !isShuffle) { // Only show initial ready toast if not shuffling and cards were generated
        toast({
-        title: isShuffle ? "Deck Reshuffled!" : "The First Visions Are Ready",
-        description: isShuffle ? "A fresh set of nightmares awaits." : "Initial creepy cards have been summoned. More will appear as you explore.",
+        title: "The First Visions Are Ready",
+        description: "Initial creepy cards have been summoned. More will appear as you explore.",
       });
-    } else {
+    } else if (isShuffle && initialGeneratedCards.length > 0) {
+        toast({
+            title: "Deck Reshuffled!",
+            description: "A fresh set of nightmares awaits.",
+        });
+    } else if (initialGeneratedCards.length === 0) {
        toast({
         title: isShuffle ? "Shuffle Anomaly" : "A Quiet Start",
         description: isShuffle ? "The deck vanished! Try creating cards or shuffling again." : "No initial cards were generated. Feel free to create your own!",
@@ -121,7 +120,7 @@ export default function HomePage() {
           const cardToCheck = cards[checkIndex];
           if (cardToCheck && !cardToCheck.imageGenerated && cardToCheck.imageUrl.startsWith('https://placehold.co')) {
             needsGeneration = true;
-            firstCardNeedingGenerationIndex = cards.findIndex(c => !c.imageGenerated && c.imageUrl.startsWith('https://placehold.co'));
+            firstCardNeedingGenerationIndex = cards.findIndex(c => c && !c.imageGenerated && c.imageUrl.startsWith('https://placehold.co'));
             break;
           }
         }
@@ -129,46 +128,57 @@ export default function HomePage() {
 
       if (needsGeneration && firstCardNeedingGenerationIndex !== -1) {
         setIsGeneratingBatch(true);
-        
-        const batchSize = 3; 
-        const updatedCards = [...cards];
-        let generatedCount = 0;
+        try {
+          const batchSize = 3; 
+          const updatedCards = [...cards];
+          let generatedCount = 0;
 
-        for (let i = 0; i < batchSize; i++) {
-          const cardIndexToProcess = firstCardNeedingGenerationIndex + i;
-          if (cardIndexToProcess >= updatedCards.length) break;
+          for (let i = 0; i < batchSize; i++) {
+            const cardIndexToProcess = firstCardNeedingGenerationIndex + i;
+            if (cardIndexToProcess >= updatedCards.length) break;
 
-          const card = updatedCards[cardIndexToProcess];
-          if (card && !card.imageGenerated && card.imageUrl.startsWith('https://placehold.co')) {
-            try {
-              const imageResult = await generateCreepyImage({ prompt: card.phrase });
-              updatedCards[cardIndexToProcess] = {
-                ...card,
-                imageUrl: imageResult.imageDataUri,
-                isAIGenerated: true,
-                imageGenerated: true,
-              };
-              generatedCount++;
-            } catch (error) {
-              console.error(`Failed to generate image for card "${card.phrase}" in batch:`, error);
-              updatedCards[cardIndexToProcess] = { ...card, imageGenerated: true }; 
+            const card = updatedCards[cardIndexToProcess];
+            if (card && !card.imageGenerated && card.imageUrl.startsWith('https://placehold.co')) {
+              try {
+                const imageResult = await generateCreepyImage({ prompt: card.phrase });
+                updatedCards[cardIndexToProcess] = {
+                  ...card,
+                  imageUrl: imageResult.imageDataUri,
+                  isAIGenerated: true,
+                  imageGenerated: true,
+                };
+                generatedCount++;
+              } catch (error) {
+                console.error(`Failed to generate image for card "${card.phrase}" in batch:`, error);
+                // Mark as generated even on failure to prevent retrying indefinitely for a consistently failing image
+                updatedCards[cardIndexToProcess] = { ...card, imageGenerated: true }; 
+              }
             }
           }
-        }
-        
-        setCards(updatedCards);
-        setIsGeneratingBatch(false);
-        if (generatedCount > 0) {
+          
+          setCards(updatedCards);
+
+          if (generatedCount > 0) {
+            toast({
+              title: "More Entities Have Manifested",
+              description: `${generatedCount} new card images materialized.`,
+            });
+          } else if (firstCardNeedingGenerationIndex !== -1) { 
+             toast({
+              title: "The Veil Remains Thin",
+              description: `Attempted to summon more images, but the spirits are quiet for now.`,
+              variant: "default"
+            });
+          }
+        } catch (e) {
+          console.error("Unexpected error during batch image generation:", e);
           toast({
-            title: "More Entities Have Manifested",
-            description: `${generatedCount} new card images materialized.`,
+            title: "Spiritual Interference",
+            description: "An unexpected issue occurred while conjuring images. Please try again later.",
+            variant: "destructive",
           });
-        } else if (firstCardNeedingGenerationIndex !== -1) { 
-           toast({
-            title: "The Veil Remains Thin",
-            description: `Attempted to summon more images, but the spirits are quiet for now.`,
-            variant: "default"
-          });
+        } finally {
+          setIsGeneratingBatch(false);
         }
       }
     };
@@ -210,7 +220,7 @@ export default function HomePage() {
       if (updatedCards.length === 1) {
         setCurrentIndex(0);
       } else {
-        setCurrentIndex(updatedCards.length - 1);
+        setCurrentIndex(updatedCards.length - 1); // Go to the newly added card
       }
       return updatedCards;
     });
@@ -232,12 +242,12 @@ export default function HomePage() {
       description: "A new deck of creepy cards is materializing.",
     });
     
-    await loadCoreCards(true); // Pass true to indicate it's a shuffle
+    await loadCoreCards(true);
 
   }, [toast, loadCoreCards]);
 
 
-  if (isLoadingInitialCards || (cards.length === 0 && !isGeneratingBatch)) { // Keep loading screen if cards are empty and not just a quick batch gen
+  if (isLoadingInitialCards || (cards.length === 0 && !isGeneratingBatch)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-foreground">
         <Ghost className="w-20 h-20 text-primary mb-6 float-ghost" />
@@ -249,8 +259,6 @@ export default function HomePage() {
     );
   }
   
-  // This condition is for when there are truly no cards after loading (e.g., initial gen failed AND no user cards)
-  // It's slightly different from the above, as cards might be empty *during* shuffle's loading phase.
   if (cards.length === 0 && !isLoadingInitialCards) {
      return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-foreground">
