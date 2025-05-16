@@ -33,7 +33,7 @@ const imageHints = [
 ];
 
 const TOTAL_INITIAL_CARDS = 80;
-const UPFRONT_GENERATION_COUNT = 1; // Generates 1 image upfront
+const UPFRONT_GENERATION_COUNT = 3; // Generates 3 images upfront
 
 // Fisher-Yates shuffle function
 function shuffleArray<T>(array: T[]): T[] {
@@ -75,7 +75,7 @@ export async function generateInitialCards(): Promise<CreepyCard[]> {
           phrase: phrase,
           imageUrl: placeholderImageUrl,
           isAIGenerated: false,
-          imageGenerated: true, 
+          imageGenerated: true, // Mark as true even on failure to avoid retry for initial load
           aiHint: placeholderAiHint
         });
       }
