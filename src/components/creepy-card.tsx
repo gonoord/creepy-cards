@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from 'next/image';
@@ -28,10 +29,10 @@ export default function CreepyCardDisplay({ card, className }: CreepyCardProps) 
           <Image
             src={card.imageUrl}
             alt={card.phrase}
-            layout="fill"
-            objectFit="cover"
-            className="transition-transform duration-500 hover:scale-105"
+            fill
+            className="object-cover transition-transform duration-500 hover:scale-105"
             data-ai-hint={card.aiHint || (card.isAIGenerated ? "creepy art" : "placeholder image")}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Basic responsive sizes
           />
         </div>
       </CardContent>
