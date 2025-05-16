@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -31,7 +32,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 interface AddCardModalProps {
-  onAddCard: (card: Omit<CreepyCard, 'id'>) => void;
+  onAddCard: (card: Omit<CreepyCard, 'id' | 'imageGenerated'>) => void;
 }
 
 export default function AddCardModal({ onAddCard }: AddCardModalProps) {
@@ -73,6 +74,7 @@ export default function AddCardModal({ onAddCard }: AddCardModalProps) {
         phrase: data.phrase,
         imageUrl: imageResult.imageDataUri,
         isAIGenerated: true,
+        // imageGenerated is set to true by the onAddCard handler in HomePage
       });
 
       toast({
@@ -94,7 +96,12 @@ export default function AddCardModal({ onAddCard }: AddCardModalProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      setIsOpen(open);
+      if (!open) {
+        reset(); // Reset form when dialog is closed
+      }
+    }}>
       <DialogTrigger asChild>
         <Button variant="outline" className="bg-accent hover:bg-accent/90 text-accent-foreground">
           <Wand2 className="mr-2 h-4 w-4" /> Add New Card

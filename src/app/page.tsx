@@ -9,7 +9,8 @@ import AddCardModal from '@/components/add-card-modal';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ArrowRight, HomeIcon, Ghost } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { useToast } from "@/hooks/use-toast"; // Added for potential loading feedback
+import { useToast } from "@/hooks/use-toast";
+import { generateCreepyImage } from '@/ai/flows/generate-creepy-image'; // For batch generation
 
 // Helper to check if running in browser
 const isBrowser = typeof window !== 'undefined';
@@ -18,17 +19,17 @@ export default function HomePage() {
   const [cards, setCards] = useState<CreepyCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [animationKey, setAnimationKey] = useState(0);
-  const [isLoadingInitialCards, setIsLoadingInitialCards] = useState(true); // For loading state
+  const [isLoadingInitialCards, setIsLoadingInitialCards] = useState(true);
+  const [isGeneratingBatch, setIsGeneratingBatch] = useState(false);
   const { toast } = useToast();
-
 
   // Load initial and custom cards
   useEffect(() => {
     const loadCards = async () => {
       setIsLoadingInitialCards(true);
       toast({
-        title: "Summoning Initial Horrors...",
-        description: "Generating images for the first cards. This may take a moment (or several!).",
+        title: "Summoning First Horrors...",
+        description: "Generating images for the first few cards. More will materialize as you delve deeper.",
       });
       
       const initialGeneratedCards = await generateInitialCards();
@@ -38,10 +39,12 @@ export default function HomePage() {
         const storedUserCards = localStorage.getItem('creepyUserCards');
         if (storedUserCards) {
           try {
-            userCards = JSON.parse(storedUserCards);
+            // Ensure loaded cards have imageGenerated flag, default to true for user cards
+            const parsedUserCards = JSON.parse(storedUserCards) as CreepyCard[];
+            userCards = parsedUserCards.map(card => ({...card, imageGenerated: card.imageGenerated ?? true }));
           } catch (e) {
             console.error("Failed to parse user cards from localStorage", e);
-            localStorage.removeItem('creepyUserCards'); // Clear corrupted data
+            localStorage.removeItem('creepyUserCards'); 
           }
         }
       }
@@ -49,8 +52,8 @@ export default function HomePage() {
       setIsLoadingInitialCards(false);
       if (initialGeneratedCards.length > 0) {
         toast({
-          title: "The Ancient Ones Have Arrived",
-          description: "Initial creepy cards are ready.",
+          title: "The First Visions Are Ready",
+          description: "Initial creepy cards have been summoned. More will appear as you explore.",
         });
       } else {
          toast({
@@ -62,15 +65,94 @@ export default function HomePage() {
     };
 
     loadCards();
-  }, [toast]); // Added toast to dependency array
+  }, [toast]);
 
   // Save custom cards to localStorage
   useEffect(() => {
-    if (isBrowser && !isLoadingInitialCards) { // Only save after initial load finishes
-      const userCards = cards.filter(card => card.isAIGenerated && !card.id.startsWith('initial-'));
-      localStorage.setItem('creepyUserCards', JSON.stringify(userCards));
+    if (isBrowser && !isLoadingInitialCards) { 
+      const userCardsToSave = cards.filter(card => card.isAIGenerated && !card.id.startsWith('initial-'));
+      localStorage.setItem('creepyUserCards', JSON.stringify(userCardsToSave));
     }
   }, [cards, isLoadingInitialCards]);
+
+  // Effect for batch image generation
+  useEffect(() => {
+    const generateNextBatchIfNeeded = async () => {
+      if (isLoadingInitialCards || isGeneratingBatch || !cards.length) return;
+
+      const lookAheadDistance = 3; // How many cards ahead to check for needing generation
+      let needsGeneration = false;
+      let firstCardNeedingGenerationIndex = -1;
+
+      for (let i = 0; i <= lookAheadDistance; i++) {
+        const checkIndex = currentIndex + i;
+        if (checkIndex < cards.length) {
+          const cardToCheck = cards[checkIndex];
+          if (cardToCheck && !cardToCheck.imageGenerated && cardToCheck.imageUrl.startsWith('https://placehold.co')) {
+            needsGeneration = true;
+            // Find the *actual* first card in the whole deck that needs generation for batch start
+            firstCardNeedingGenerationIndex = cards.findIndex(c => !c.imageGenerated && c.imageUrl.startsWith('https://placehold.co'));
+            break;
+          }
+        }
+      }
+
+      if (needsGeneration && firstCardNeedingGenerationIndex !== -1) {
+        setIsGeneratingBatch(true);
+        toast({
+          title: "Summoning More Horrors...",
+          description: `Generating images for the next batch, starting with card #${firstCardNeedingGenerationIndex + 1}.`,
+        });
+
+        const batchSize = 5;
+        const updatedCards = [...cards];
+        let generatedCount = 0;
+
+        for (let i = 0; i < batchSize; i++) {
+          const cardIndexToProcess = firstCardNeedingGenerationIndex + i;
+          if (cardIndexToProcess >= updatedCards.length) break;
+
+          const card = updatedCards[cardIndexToProcess];
+          // Double check it still needs generation, in case of overlapping calls (though isGeneratingBatch should prevent)
+          if (card && !card.imageGenerated && card.imageUrl.startsWith('https://placehold.co')) {
+            try {
+              const imageResult = await generateCreepyImage({ prompt: card.phrase });
+              updatedCards[cardIndexToProcess] = {
+                ...card,
+                imageUrl: imageResult.imageDataUri,
+                isAIGenerated: true,
+                imageGenerated: true,
+              };
+              generatedCount++;
+            } catch (error) {
+              console.error(`Failed to generate image for card "${card.phrase}" in batch:`, error);
+              // Mark as attempted (imageGenerated: true) even if failed, to prevent retrying this specific card indefinitely.
+              // It will keep its placeholder.
+              updatedCards[cardIndexToProcess] = { ...card, imageGenerated: true };
+            }
+          }
+        }
+        
+        setCards(updatedCards);
+        setIsGeneratingBatch(false);
+        if (generatedCount > 0) {
+          toast({
+            title: "More Entities Have Manifested",
+            description: `${generatedCount} new card images materialized.`,
+          });
+        } else if (firstCardNeedingGenerationIndex !== -1) { // If we tried to generate but nothing new came
+           toast({
+            title: "The Veil Remains Thin",
+            description: `Attempted to summon more images, but the spirits are quiet for now.`,
+            variant: "default"
+          });
+        }
+      }
+    };
+
+    generateNextBatchIfNeeded();
+  }, [currentIndex, cards, isLoadingInitialCards, isGeneratingBatch, toast]);
+
 
   const triggerAnimation = () => {
     setAnimationKey(prevKey => prevKey + 1);
@@ -94,22 +176,26 @@ export default function HomePage() {
     triggerAnimation();
   }, [cards.length]);
 
-  const handleAddCard = useCallback((newCardData: Omit<CreepyCard, 'id'>) => {
+  const handleAddCard = useCallback((newCardData: Omit<CreepyCard, 'id' | 'imageGenerated'>) => {
     const newCard: CreepyCard = {
       ...newCardData,
-      id: uuidv4(), // Generate unique ID
+      id: uuidv4(),
+      imageGenerated: true, // User-added cards have their images generated immediately
     };
-    setCards((prevCards) => [...prevCards, newCard]);
-    setCurrentIndex(cards.length); // Navigate to the new card (which will be at the new length - 1 after update)
+    setCards((prevCards) => {
+      const updatedCards = [...prevCards, newCard];
+      setCurrentIndex(updatedCards.length - 1); // Navigate to the new card
+      return updatedCards;
+    });
     triggerAnimation();
-  }, [cards]); // cards.length dependency might cause issues if cards updates async. Let's use cards itself.
+  }, []);
 
 
   if (isLoadingInitialCards && cards.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-foreground">
         <Ghost className="w-16 h-16 text-primary mb-4 animate-pulse" />
-        <p className="text-xl">Conjuring initial deck... This may take a while as images are generated.</p>
+        <p className="text-xl">Conjuring initial deck... This may take a while as the first images are generated.</p>
       </div>
     );
   }
