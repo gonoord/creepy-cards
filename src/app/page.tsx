@@ -144,6 +144,7 @@ export default function HomePage() {
                 generatedCount++;
               } catch (error) {
                 console.error(`Failed to generate image for card "${card.phrase}" in batch:`, error);
+                // Mark as generated even on failure to avoid retrying indefinitely for this session
                 updatedCards[cardIndexToProcess] = { ...card, imageGenerated: true, imageUrl: card.imageUrl || 'https://placehold.co/600x400.png' }; 
               }
             }
@@ -172,7 +173,7 @@ export default function HomePage() {
     };
 
     generateNextBatchIfNeeded();
-  }, [currentIndex, cards, isLoadingInitialCards]);
+  }, [currentIndex, cards, isLoadingInitialCards]); // Removed isGeneratingBatch from dependencies as it's handled internally
 
 
   const triggerAnimation = () => {
@@ -180,13 +181,13 @@ export default function HomePage() {
   };
 
   const handleNext = useCallback(() => {
-    if (cards.length === 0 || isLoadingInitialCards || isGeneratingBatch) return;
+    if (isLoadingInitialCards || isGeneratingBatch || cards.length === 0) return;
     setCurrentIndex((prevIndex) => (prevIndex + 1) % cards.length);
     triggerAnimation();
   }, [cards.length, isLoadingInitialCards, isGeneratingBatch]);
 
   const handlePrev = useCallback(() => {
-    if (cards.length === 0 || currentIndex === 0) return; // Also check currentIndex
+     if (cards.length === 0 || currentIndex === 0) return;
     setCurrentIndex((prevIndex) => (prevIndex - 1 + cards.length) % cards.length);
     triggerAnimation();
   }, [cards.length, currentIndex]);
@@ -216,6 +217,8 @@ export default function HomePage() {
   }, []);
 
   const handleShuffle = useCallback(async () => {
+    if (isLoadingInitialCards) return; // Prevent re-shuffle if already shuffling
+
     setIsLoadingInitialCards(true);
     setCurrentLoadingMessage(loadingMessages[Math.floor(Math.random() * loadingMessages.length)]); 
     setCards([]); 
@@ -232,13 +235,14 @@ export default function HomePage() {
     
     await loadCoreCards(true);
 
-  }, [toast, loadCoreCards]);
+  }, [toast, loadCoreCards, isLoadingInitialCards]);
 
-  // More granular disabled states
-  const nextOrAddDisabled = isLoadingInitialCards || isGeneratingBatch || cards.length === 0;
-  const prevDisabled = cards.length === 0 || currentIndex === 0;
-  const startDisabled = cards.length === 0;
-  const shuffleDisabled = isLoadingInitialCards;
+  // Define disabled states for buttons
+  const disableNextButton = isLoadingInitialCards || isGeneratingBatch || cards.length === 0;
+  const disablePrevButton = cards.length === 0 || currentIndex === 0;
+  const disableStartButton = cards.length === 0;
+  const disableAddCardButton = isLoadingInitialCards; // Only disabled during full initial load/shuffle
+  const disableShuffleButton = isLoadingInitialCards; // Only disabled during full initial load/shuffle
 
 
   if (isLoadingInitialCards || (cards.length === 0 && !isGeneratingBatch && !isLoadingInitialCards )) {
@@ -259,8 +263,8 @@ export default function HomePage() {
         <Ghost className="w-16 h-16 text-primary mb-4" />
         <p className="text-xl mb-4">The void is empty... for now.</p>
         <div className="flex gap-4">
-            <AddCardModal onAddCard={handleAddCard} disabled={nextOrAddDisabled} />
-            <Button onClick={handleShuffle} variant="outline" disabled={shuffleDisabled}>
+            <AddCardModal onAddCard={handleAddCard} disabled={disableAddCardButton} />
+            <Button onClick={handleShuffle} variant="outline" disabled={disableShuffleButton}>
                 <Shuffle className="mr-2 h-4 w-4" /> Shuffle Deck
             </Button>
         </div>
@@ -294,20 +298,20 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-3 gap-4 w-full max-w-md mb-8">
-          <Button onClick={handlePrev} variant="secondary" className="text-lg py-6" disabled={prevDisabled}>
+          <Button onClick={handlePrev} variant="secondary" className="text-lg py-6" disabled={disablePrevButton}>
             <ArrowLeft className="h-6 w-6 mr-2" /> Previous
           </Button>
-          <Button onClick={handleGoToStart} variant="secondary" className="text-lg py-6" disabled={startDisabled}>
+          <Button onClick={handleGoToStart} variant="secondary" className="text-lg py-6" disabled={disableStartButton}>
             <HomeIcon className="h-6 w-6 mr-2" /> Start
           </Button>
-          <Button onClick={handleNext} variant="secondary" className="text-lg py-6" disabled={nextOrAddDisabled}>
+          <Button onClick={handleNext} variant="secondary" className="text-lg py-6" disabled={disableNextButton}>
             <ArrowRight className="h-6 w-6 mr-2" /> Next
           </Button>
         </div>
         
         <div className="w-full max-w-md flex justify-center gap-4">
-            <AddCardModal onAddCard={handleAddCard} disabled={nextOrAddDisabled} />
-            <Button onClick={handleShuffle} variant="outline" disabled={shuffleDisabled}>
+            <AddCardModal onAddCard={handleAddCard} disabled={disableAddCardButton} />
+            <Button onClick={handleShuffle} variant="outline" disabled={disableShuffleButton}>
                 <Shuffle className="mr-2 h-4 w-4" /> Shuffle Deck
             </Button>
         </div>
