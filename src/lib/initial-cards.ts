@@ -27,7 +27,7 @@ const imageHints = [
 ];
 
 const TOTAL_INITIAL_CARDS = 80;
-const UPFRONT_GENERATION_COUNT = 5;
+const UPFRONT_GENERATION_COUNT = 3; // Reduced from 5 to 3
 
 export async function generateInitialCards(): Promise<CreepyCard[]> {
   const cards: CreepyCard[] = [];
@@ -74,4 +74,3 @@ export async function generateInitialCards(): Promise<CreepyCard[]> {
   }
   return cards;
 }
-

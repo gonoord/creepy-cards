@@ -126,4 +126,17 @@ body {
     0%, 100% { box-shadow: 0 0 5px hsl(var(--primary) / 0.2), 0 0 8px hsl(var(--primary) / 0.1); }
     50% { box-shadow: 0 0 8px hsl(var(--primary) / 0.3), 0 0 12px hsl(var(--primary) / 0.2); }
   }
+
+  .float-ghost {
+    animation: floatGhost 3s ease-in-out infinite;
+  }
+
+  @keyframes floatGhost {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-15px);
+    }
+  }
 }

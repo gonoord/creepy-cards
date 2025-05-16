@@ -15,13 +15,41 @@ import { generateCreepyImage } from '@/ai/flows/generate-creepy-image'; // For b
 // Helper to check if running in browser
 const isBrowser = typeof window !== 'undefined';
 
+const loadingMessages = [
+  "Conjuring initial spirits...",
+  "Stirring the cauldron of creativity...",
+  "Consulting the otherworldly for spooky visuals...",
+  "Polishing the crypt door handles...",
+  "Waking the bats... (they're not morning creatures)",
+  "Ensuring the ghosts are properly chained...",
+  "Calibrating the creep-o-meter...",
+  "Summoning nightmares, please wait...",
+  "Dusting off ancient grimoires...",
+  "Drawing eerie sigils...",
+];
+
 export default function HomePage() {
   const [cards, setCards] = useState<CreepyCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [animationKey, setAnimationKey] = useState(0);
   const [isLoadingInitialCards, setIsLoadingInitialCards] = useState(true);
   const [isGeneratingBatch, setIsGeneratingBatch] = useState(false);
+  const [currentLoadingMessage, setCurrentLoadingMessage] = useState(loadingMessages[0]);
   const { toast } = useToast();
+
+  // Cycle loading messages
+  useEffect(() => {
+    if (isLoadingInitialCards && cards.length === 0) {
+      const intervalId = setInterval(() => {
+        setCurrentLoadingMessage(prevMessage => {
+          const currentIndex = loadingMessages.indexOf(prevMessage);
+          const nextIndex = (currentIndex + 1) % loadingMessages.length;
+          return loadingMessages[nextIndex];
+        });
+      }, 2500); // Change message every 2.5 seconds
+      return () => clearInterval(intervalId);
+    }
+  }, [isLoadingInitialCards, cards.length]);
 
   // Load initial and custom cards
   useEffect(() => {
@@ -39,7 +67,6 @@ export default function HomePage() {
         const storedUserCards = localStorage.getItem('creepyUserCards');
         if (storedUserCards) {
           try {
-            // Ensure loaded cards have imageGenerated flag, default to true for user cards
             const parsedUserCards = JSON.parse(storedUserCards) as CreepyCard[];
             userCards = parsedUserCards.map(card => ({...card, imageGenerated: card.imageGenerated ?? true }));
           } catch (e) {
@@ -80,7 +107,7 @@ export default function HomePage() {
     const generateNextBatchIfNeeded = async () => {
       if (isLoadingInitialCards || isGeneratingBatch || !cards.length) return;
 
-      const lookAheadDistance = 3; // How many cards ahead to check for needing generation
+      const lookAheadDistance = 3; 
       let needsGeneration = false;
       let firstCardNeedingGenerationIndex = -1;
 
@@ -90,7 +117,6 @@ export default function HomePage() {
           const cardToCheck = cards[checkIndex];
           if (cardToCheck && !cardToCheck.imageGenerated && cardToCheck.imageUrl.startsWith('https://placehold.co')) {
             needsGeneration = true;
-            // Find the *actual* first card in the whole deck that needs generation for batch start
             firstCardNeedingGenerationIndex = cards.findIndex(c => !c.imageGenerated && c.imageUrl.startsWith('https://placehold.co'));
             break;
           }
@@ -104,7 +130,7 @@ export default function HomePage() {
           description: `Generating images for the next batch, starting with card #${firstCardNeedingGenerationIndex + 1}.`,
         });
 
-        const batchSize = 3; // Changed batch size from 5 to 3
+        const batchSize = 3; 
         const updatedCards = [...cards];
         let generatedCount = 0;
 
@@ -113,7 +139,6 @@ export default function HomePage() {
           if (cardIndexToProcess >= updatedCards.length) break;
 
           const card = updatedCards[cardIndexToProcess];
-          // Double check it still needs generation, in case of overlapping calls (though isGeneratingBatch should prevent)
           if (card && !card.imageGenerated && card.imageUrl.startsWith('https://placehold.co')) {
             try {
               const imageResult = await generateCreepyImage({ prompt: card.phrase });
@@ -126,8 +151,6 @@ export default function HomePage() {
               generatedCount++;
             } catch (error) {
               console.error(`Failed to generate image for card "${card.phrase}" in batch:`, error);
-              // Mark as attempted (imageGenerated: true) even if failed, to prevent retrying this specific card indefinitely.
-              // It will keep its placeholder.
               updatedCards[cardIndexToProcess] = { ...card, imageGenerated: true };
             }
           }
@@ -140,7 +163,7 @@ export default function HomePage() {
             title: "More Entities Have Manifested",
             description: `${generatedCount} new card images materialized.`,
           });
-        } else if (firstCardNeedingGenerationIndex !== -1) { // If we tried to generate but nothing new came
+        } else if (firstCardNeedingGenerationIndex !== -1) { 
            toast({
             title: "The Veil Remains Thin",
             description: `Attempted to summon more images, but the spirits are quiet for now.`,
@@ -180,11 +203,11 @@ export default function HomePage() {
     const newCard: CreepyCard = {
       ...newCardData,
       id: uuidv4(),
-      imageGenerated: true, // User-added cards have their images generated immediately
+      imageGenerated: true, 
     };
     setCards((prevCards) => {
       const updatedCards = [...prevCards, newCard];
-      setCurrentIndex(updatedCards.length - 1); // Navigate to the new card
+      setCurrentIndex(updatedCards.length - 1); 
       return updatedCards;
     });
     triggerAnimation();
@@ -194,8 +217,11 @@ export default function HomePage() {
   if (isLoadingInitialCards && cards.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-foreground">
-        <Ghost className="w-16 h-16 text-primary mb-4 animate-pulse" />
-        <p className="text-xl">Conjuring initial deck... This may take a while as the first images are generated.</p>
+        <Ghost className="w-20 h-20 text-primary mb-6 float-ghost" />
+        <p className="text-2xl font-semibold mb-2">Please Wait...</p>
+        <p className="text-lg text-muted-foreground text-center max-w-md">
+          {currentLoadingMessage}
+        </p>
       </div>
     );
   }
@@ -229,13 +255,13 @@ export default function HomePage() {
 
         <div className="grid grid-cols-3 gap-4 w-full max-w-md mb-8">
           <Button onClick={handlePrev} variant="secondary" className="text-lg py-6">
-            <ArrowLeft className="h-6 w-6" /> Previous
+            <ArrowLeft className="h-6 w-6 mr-2" /> Previous
           </Button>
           <Button onClick={handleGoToStart} variant="secondary" className="text-lg py-6">
-            <HomeIcon className="h-6 w-6" /> Start
+            <HomeIcon className="h-6 w-6 mr-2" /> Start
           </Button>
           <Button onClick={handleNext} variant="secondary" className="text-lg py-6">
-            <ArrowRight className="h-6 w-6" /> Next
+            <ArrowRight className="h-6 w-6 mr-2" /> Next
           </Button>
         </div>
         
@@ -250,4 +276,3 @@ export default function HomePage() {
     </div>
   );
 }
-
