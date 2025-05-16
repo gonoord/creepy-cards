@@ -17,8 +17,8 @@ const phrases = [
   "Music box",
   "Scratching",
   "Empty swing",
-  "The reflection",
-  "Unknown caller",
+  "Reflection", // Shorter
+  "Unknown call", // Shorter
   "Scarecrow",
   "Basement",
   "Attic",
@@ -33,7 +33,7 @@ const imageHints = [
 ];
 
 const TOTAL_INITIAL_CARDS = 80;
-const UPFRONT_GENERATION_COUNT = 3; // Generates 3 images upfront
+const UPFRONT_GENERATION_COUNT = 1; // Generates 1 image upfront
 
 export async function generateInitialCards(): Promise<CreepyCard[]> {
   const cards: CreepyCard[] = [];
@@ -82,3 +82,4 @@ export async function generateInitialCards(): Promise<CreepyCard[]> {
   }
   return cards;
 }
+

@@ -125,10 +125,11 @@ export default function HomePage() {
 
       if (needsGeneration && firstCardNeedingGenerationIndex !== -1) {
         setIsGeneratingBatch(true);
-        toast({
-          title: "Summoning More Horrors...",
-          description: `Generating images for the next batch, starting with card #${firstCardNeedingGenerationIndex + 1}.`,
-        });
+        // Toast removed for less noisy background processing
+        // toast({
+        //   title: "Summoning More Horrors...",
+        //   description: `Generating images for the next batch, starting with card #${firstCardNeedingGenerationIndex + 1}.`,
+        // });
 
         const batchSize = 3; 
         const updatedCards = [...cards];
