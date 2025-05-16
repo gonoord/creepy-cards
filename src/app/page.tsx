@@ -7,25 +7,24 @@ import { generateInitialCards } from '@/lib/initial-cards';
 import CreepyCardDisplay from '@/components/creepy-card';
 import AddCardModal from '@/components/add-card-modal';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, HomeIcon, Ghost } from 'lucide-react';
+import { ArrowLeft, ArrowRight, HomeIcon, Ghost, Shuffle } from 'lucide-react'; // Added Shuffle
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from "@/hooks/use-toast";
-import { generateCreepyImage } from '@/ai/flows/generate-creepy-image'; // For batch generation
+import { generateCreepyImage } from '@/ai/flows/generate-creepy-image';
 
-// Helper to check if running in browser
 const isBrowser = typeof window !== 'undefined';
 
 const loadingMessages = [
-  "Conjuring initial spirits...",
-  "Stirring the cauldron of creativity...",
-  "Consulting the otherworldly for spooky visuals...",
-  "Polishing the crypt door handles...",
-  "Waking the bats... (they're not morning creatures)",
-  "Ensuring the ghosts are properly chained...",
-  "Calibrating the creep-o-meter...",
-  "Summoning nightmares, please wait...",
-  "Dusting off ancient grimoires...",
-  "Drawing eerie sigils...",
+  "Conjuring new spirits...",
+  "Stirring the cauldron of chaos...",
+  "Consulting otherworldly entities for fresh frights...",
+  "Polishing the crypt door handles... again...",
+  "Waking a new batch of bats...",
+  "Ensuring the fresh ghosts are properly chained...",
+  "Recalibrating the creep-o-meter for a new session...",
+  "Summoning original nightmares, please stand by...",
+  "Dusting off even more ancient grimoires...",
+  "Drawing brand new eerie sigils...",
 ];
 
 export default function HomePage() {
@@ -37,7 +36,6 @@ export default function HomePage() {
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState(loadingMessages[0]);
   const { toast } = useToast();
 
-  // Cycle loading messages
   useEffect(() => {
     if (isLoadingInitialCards && cards.length === 0) {
       const intervalId = setInterval(() => {
@@ -46,24 +44,23 @@ export default function HomePage() {
           const nextIndex = (currentIndex + 1) % loadingMessages.length;
           return loadingMessages[nextIndex];
         });
-      }, 5000); // Change message every 5 seconds
+      }, 5000);
       return () => clearInterval(intervalId);
     }
   }, [isLoadingInitialCards, cards.length]);
 
-  // Load initial and custom cards
-  useEffect(() => {
-    const loadCards = async () => {
-      setIsLoadingInitialCards(true);
+  const loadCoreCards = useCallback(async (isShuffle = false) => {
+    if (!isShuffle) { // Only show initial "Summoning" toast on first load, not shuffle
       toast({
         title: "Summoning First Horrors...",
         description: "Generating images for the first few cards. More will materialize as you delve deeper.",
       });
-      
-      const initialGeneratedCards = await generateInitialCards();
-      
-      let userCards: CreepyCard[] = [];
-      if (isBrowser) {
+    }
+    
+    const initialGeneratedCards = await generateInitialCards();
+    
+    let userCards: CreepyCard[] = [];
+    if (isBrowser && !isShuffle) { // Don't load user cards if shuffling
         const storedUserCards = localStorage.getItem('creepyUserCards');
         if (storedUserCards) {
           try {
@@ -75,26 +72,34 @@ export default function HomePage() {
           }
         }
       }
-      setCards([...initialGeneratedCards, ...userCards]);
-      setIsLoadingInitialCards(false);
-      if (initialGeneratedCards.length > 0) {
-        toast({
-          title: "The First Visions Are Ready",
-          description: "Initial creepy cards have been summoned. More will appear as you explore.",
-        });
-      } else {
-         toast({
-          title: "A Quiet Start",
-          description: "No initial cards were generated. Feel free to create your own!",
-          variant: "destructive",
-        });
-      }
-    };
+    
+    setCards(isShuffle ? initialGeneratedCards : [...initialGeneratedCards, ...userCards]);
+    setIsLoadingInitialCards(false);
+    setCurrentIndex(0);
+    setAnimationKey(prevKey => prevKey + 1);
 
-    loadCards();
+
+    if (initialGeneratedCards.length > 0) {
+       toast({
+        title: isShuffle ? "Deck Reshuffled!" : "The First Visions Are Ready",
+        description: isShuffle ? "A fresh set of nightmares awaits." : "Initial creepy cards have been summoned. More will appear as you explore.",
+      });
+    } else {
+       toast({
+        title: isShuffle ? "Shuffle Anomaly" : "A Quiet Start",
+        description: isShuffle ? "The deck vanished! Try creating cards or shuffling again." : "No initial cards were generated. Feel free to create your own!",
+        variant: "destructive",
+      });
+    }
   }, [toast]);
 
-  // Save custom cards to localStorage
+
+  useEffect(() => {
+    setIsLoadingInitialCards(true);
+    loadCoreCards(false);
+  }, [loadCoreCards]);
+
+
   useEffect(() => {
     if (isBrowser && !isLoadingInitialCards) { 
       const userCardsToSave = cards.filter(card => card.isAIGenerated && !card.id.startsWith('initial-'));
@@ -102,7 +107,6 @@ export default function HomePage() {
     }
   }, [cards, isLoadingInitialCards]);
 
-  // Effect for batch image generation
   useEffect(() => {
     const generateNextBatchIfNeeded = async () => {
       if (isLoadingInitialCards || isGeneratingBatch || !cards.length) return;
@@ -125,12 +129,7 @@ export default function HomePage() {
 
       if (needsGeneration && firstCardNeedingGenerationIndex !== -1) {
         setIsGeneratingBatch(true);
-        // Toast removed for less noisy background processing
-        // toast({
-        //   title: "Summoning More Horrors...",
-        //   description: `Generating images for the next batch, starting with card #${firstCardNeedingGenerationIndex + 1}.`,
-        // });
-
+        
         const batchSize = 3; 
         const updatedCards = [...cards];
         let generatedCount = 0;
@@ -152,7 +151,7 @@ export default function HomePage() {
               generatedCount++;
             } catch (error) {
               console.error(`Failed to generate image for card "${card.phrase}" in batch:`, error);
-              updatedCards[cardIndexToProcess] = { ...card, imageGenerated: true }; // Mark as attempted
+              updatedCards[cardIndexToProcess] = { ...card, imageGenerated: true }; 
             }
           }
         }
@@ -204,15 +203,13 @@ export default function HomePage() {
     const newCard: CreepyCard = {
       ...newCardData,
       id: uuidv4(),
-      imageGenerated: true, // Newly added cards via modal have their image generated during that process
+      imageGenerated: true, 
     };
     setCards((prevCards) => {
       const updatedCards = [...prevCards, newCard];
-      // If adding the first card, or if the list was empty
       if (updatedCards.length === 1) {
         setCurrentIndex(0);
       } else {
-         // Place new card at the end, then go to it.
         setCurrentIndex(updatedCards.length - 1);
       }
       return updatedCards;
@@ -220,8 +217,27 @@ export default function HomePage() {
     triggerAnimation();
   }, []);
 
+  const handleShuffle = useCallback(async () => {
+    setIsLoadingInitialCards(true);
+    setCurrentLoadingMessage(loadingMessages[0]); 
+    setCards([]); 
+    setCurrentIndex(0);
 
-  if (isLoadingInitialCards && cards.length === 0) {
+    if (isBrowser) {
+      localStorage.removeItem('creepyUserCards');
+    }
+
+    toast({
+      title: "Reshuffling the Horrors...",
+      description: "A new deck of creepy cards is materializing.",
+    });
+    
+    await loadCoreCards(true); // Pass true to indicate it's a shuffle
+
+  }, [toast, loadCoreCards]);
+
+
+  if (isLoadingInitialCards || (cards.length === 0 && !isGeneratingBatch)) { // Keep loading screen if cards are empty and not just a quick batch gen
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-foreground">
         <Ghost className="w-20 h-20 text-primary mb-6 float-ghost" />
@@ -233,12 +249,19 @@ export default function HomePage() {
     );
   }
   
-  if (cards.length === 0) {
+  // This condition is for when there are truly no cards after loading (e.g., initial gen failed AND no user cards)
+  // It's slightly different from the above, as cards might be empty *during* shuffle's loading phase.
+  if (cards.length === 0 && !isLoadingInitialCards) {
      return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-foreground">
         <Ghost className="w-16 h-16 text-primary mb-4" />
         <p className="text-xl mb-4">The void is empty... for now.</p>
-        <AddCardModal onAddCard={handleAddCard} />
+        <div className="flex gap-4">
+            <AddCardModal onAddCard={handleAddCard} />
+            <Button onClick={handleShuffle} variant="outline" disabled={isLoadingInitialCards || isGeneratingBatch}>
+                <Shuffle className="mr-2 h-4 w-4" /> Shuffle Deck
+            </Button>
+        </div>
       </div>
     );
   }
@@ -257,23 +280,33 @@ export default function HomePage() {
 
       <main className="flex flex-col items-center w-full">
         <div className="w-full max-w-md mb-8 h-[550px] flex items-center justify-center">
-          <CreepyCardDisplay key={animationKey} card={currentCard} className="h-full" />
+          {currentCard ? (
+            <CreepyCardDisplay key={animationKey} card={currentCard} className="h-full" />
+          ) : (
+            <div className="w-full max-w-md h-[550px] flex items-center justify-center bg-card rounded-lg shadow-xl p-4">
+                 <p className="text-muted-foreground">Loading card...</p>
+            </div>
+           )
+          }
         </div>
 
         <div className="grid grid-cols-3 gap-4 w-full max-w-md mb-8">
-          <Button onClick={handlePrev} variant="secondary" className="text-lg py-6">
+          <Button onClick={handlePrev} variant="secondary" className="text-lg py-6" disabled={isLoadingInitialCards || isGeneratingBatch}>
             <ArrowLeft className="h-6 w-6 mr-2" /> Previous
           </Button>
-          <Button onClick={handleGoToStart} variant="secondary" className="text-lg py-6">
+          <Button onClick={handleGoToStart} variant="secondary" className="text-lg py-6" disabled={isLoadingInitialCards || isGeneratingBatch}>
             <HomeIcon className="h-6 w-6 mr-2" /> Start
           </Button>
-          <Button onClick={handleNext} variant="secondary" className="text-lg py-6">
+          <Button onClick={handleNext} variant="secondary" className="text-lg py-6" disabled={isLoadingInitialCards || isGeneratingBatch}>
             <ArrowRight className="h-6 w-6 mr-2" /> Next
           </Button>
         </div>
         
-        <div className="w-full max-w-md flex justify-center">
+        <div className="w-full max-w-md flex justify-center gap-4">
             <AddCardModal onAddCard={handleAddCard} />
+            <Button onClick={handleShuffle} variant="outline" disabled={isLoadingInitialCards || isGeneratingBatch}>
+                <Shuffle className="mr-2 h-4 w-4" /> Shuffle Deck
+            </Button>
         </div>
       </main>
 
