@@ -20,6 +20,10 @@ export default function CreepyCardDisplay({ card, className }: CreepyCardProps) 
     );
   }
 
+  // Ensure imageUrl is always a string. For initial cards, card.imageUrl is already set.
+  // This fallback adheres to the guideline of not adding text parameters to placehold.co URLs.
+  const imageUrl = card.imageUrl || 'https://placehold.co/600x400.png';
+
   return (
     <Card className={cn("w-full max-w-md overflow-hidden shadow-2xl creepy-card-enter subtle-flicker", className)}
       style={{'--primary-hsl': '269 38% 44%'} as React.CSSProperties} // for flicker animation access
@@ -27,12 +31,13 @@ export default function CreepyCardDisplay({ card, className }: CreepyCardProps) 
       <CardContent className="p-0">
         <div className="aspect-[3/2] relative w-full bg-muted">
           <Image
-            src={card.imageUrl}
+            src={imageUrl}
             alt={card.phrase}
             fill
             className="object-cover transition-transform duration-500 hover:scale-105"
             data-ai-hint={card.aiHint || (card.isAIGenerated ? "creepy art" : "placeholder image")}
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Basic responsive sizes
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            priority={!card.isAIGenerated && !!card.imageUrl} // Prioritize loading initial card images if URL is present
           />
         </div>
       </CardContent>
