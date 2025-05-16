@@ -40,16 +40,16 @@ export default function HomePage() {
     if (isLoadingInitialCards && cards.length === 0) {
       const intervalId = setInterval(() => {
         setCurrentLoadingMessage(loadingMessages[Math.floor(Math.random() * loadingMessages.length)]);
-      }, 5000); // Cycle messages every 5 seconds
+      }, 5000); 
       return () => clearInterval(intervalId);
     }
   }, [isLoadingInitialCards, cards.length]);
 
-  const loadCoreCards = useCallback(async (isShuffle = false) => {
+  const loadCoreCards = useCallback(async (isShuffleOp = false) => {
     const initialGeneratedCards = await generateInitialCards();
     
     let userCards: CreepyCard[] = [];
-    if (isBrowser && !isShuffle) {
+    if (isBrowser && !isShuffleOp) {
         const storedUserCards = localStorage.getItem('creepyUserCards');
         if (storedUserCards) {
           try {
@@ -62,25 +62,25 @@ export default function HomePage() {
         }
       }
     
-    setCards(isShuffle ? initialGeneratedCards : [...initialGeneratedCards, ...userCards]);
+    setCards(isShuffleOp ? initialGeneratedCards : [...initialGeneratedCards, ...userCards]);
     setIsLoadingInitialCards(false);
     setCurrentIndex(0);
     setAnimationKey(prevKey => prevKey + 1);
 
-    if (initialGeneratedCards.length > 0 && !isShuffle) {
+    if (initialGeneratedCards.length > 0 && !isShuffleOp) {
        toast({
         title: "The First Visions Are Ready",
         description: "Initial creepy cards have been summoned. More will appear as you explore.",
       });
-    } else if (isShuffle && initialGeneratedCards.length > 0) {
+    } else if (isShuffleOp && initialGeneratedCards.length > 0) {
         toast({
             title: "Deck Reshuffled!",
             description: "A fresh set of nightmares awaits.",
         });
     } else if (initialGeneratedCards.length === 0) {
        toast({
-        title: isShuffle ? "Shuffle Anomaly" : "A Quiet Start",
-        description: isShuffle ? "The deck vanished! Try creating cards or shuffling again." : "No initial cards were generated. Feel free to create your own!",
+        title: isShuffleOp ? "Shuffle Anomaly" : "A Quiet Start",
+        description: isShuffleOp ? "The deck vanished! Try creating cards or shuffling again." : "No initial cards were generated. Feel free to create your own!",
         variant: "destructive",
       });
     }
@@ -144,7 +144,6 @@ export default function HomePage() {
                 generatedCount++;
               } catch (error) {
                 console.error(`Failed to generate image for card "${card.phrase}" in batch:`, error);
-                // Mark as generated (even if failed) to prevent re-attempts for this session, but keep placeholder
                 updatedCards[cardIndexToProcess] = { ...card, imageGenerated: true, imageUrl: card.imageUrl || 'https://placehold.co/600x400.png' }; 
               }
             }
@@ -187,16 +186,16 @@ export default function HomePage() {
   }, [cards.length, isLoadingInitialCards, isGeneratingBatch]);
 
   const handlePrev = useCallback(() => {
-    if (cards.length === 0 || isLoadingInitialCards || isGeneratingBatch) return;
+    if (cards.length === 0) return;
     setCurrentIndex((prevIndex) => (prevIndex - 1 + cards.length) % cards.length);
     triggerAnimation();
-  }, [cards.length, isLoadingInitialCards, isGeneratingBatch]);
+  }, [cards.length]);
 
   const handleGoToStart = useCallback(() => {
-    if (cards.length === 0 || isLoadingInitialCards || isGeneratingBatch) return;
+    if (cards.length === 0) return;
     setCurrentIndex(0);
     triggerAnimation();
-  }, [cards.length, isLoadingInitialCards, isGeneratingBatch]);
+  }, [cards.length]);
 
   const handleAddCard = useCallback((newCardData: Omit<CreepyCard, 'id' | 'imageGenerated'>) => {
     const newCard: CreepyCard = {
@@ -235,7 +234,9 @@ export default function HomePage() {
 
   }, [toast, loadCoreCards]);
 
-  const buttonsDisabled = isLoadingInitialCards || isGeneratingBatch;
+  // More granular disabled states
+  const criticalActionDisabled = isLoadingInitialCards || isGeneratingBatch;
+
 
   if (isLoadingInitialCards || (cards.length === 0 && !isGeneratingBatch && !isLoadingInitialCards )) {
     return (
@@ -255,8 +256,8 @@ export default function HomePage() {
         <Ghost className="w-16 h-16 text-primary mb-4" />
         <p className="text-xl mb-4">The void is empty... for now.</p>
         <div className="flex gap-4">
-            <AddCardModal onAddCard={handleAddCard} />
-            <Button onClick={handleShuffle} variant="outline" disabled={buttonsDisabled}>
+            <AddCardModal onAddCard={handleAddCard} disabled={criticalActionDisabled} />
+            <Button onClick={handleShuffle} variant="outline" disabled={isLoadingInitialCards}>
                 <Shuffle className="mr-2 h-4 w-4" /> Shuffle Deck
             </Button>
         </div>
@@ -290,20 +291,20 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-3 gap-4 w-full max-w-md mb-8">
-          <Button onClick={handlePrev} variant="secondary" className="text-lg py-6" disabled={buttonsDisabled}>
+          <Button onClick={handlePrev} variant="secondary" className="text-lg py-6" disabled={cards.length === 0}>
             <ArrowLeft className="h-6 w-6 mr-2" /> Previous
           </Button>
-          <Button onClick={handleGoToStart} variant="secondary" className="text-lg py-6" disabled={buttonsDisabled}>
+          <Button onClick={handleGoToStart} variant="secondary" className="text-lg py-6" disabled={cards.length === 0}>
             <HomeIcon className="h-6 w-6 mr-2" /> Start
           </Button>
-          <Button onClick={handleNext} variant="secondary" className="text-lg py-6" disabled={buttonsDisabled}>
+          <Button onClick={handleNext} variant="secondary" className="text-lg py-6" disabled={criticalActionDisabled || cards.length === 0}>
             <ArrowRight className="h-6 w-6 mr-2" /> Next
           </Button>
         </div>
         
         <div className="w-full max-w-md flex justify-center gap-4">
-            <AddCardModal onAddCard={handleAddCard} />
-            <Button onClick={handleShuffle} variant="outline" disabled={buttonsDisabled}>
+            <AddCardModal onAddCard={handleAddCard} disabled={criticalActionDisabled} />
+            <Button onClick={handleShuffle} variant="outline" disabled={isLoadingInitialCards}>
                 <Shuffle className="mr-2 h-4 w-4" /> Shuffle Deck
             </Button>
         </div>
@@ -315,3 +316,4 @@ export default function HomePage() {
     </div>
   );
 }
+

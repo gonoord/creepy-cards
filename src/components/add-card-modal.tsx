@@ -33,9 +33,10 @@ type FormData = z.infer<typeof formSchema>;
 
 interface AddCardModalProps {
   onAddCard: (card: Omit<CreepyCard, 'id' | 'imageGenerated'>) => void;
+  disabled?: boolean;
 }
 
-export default function AddCardModal({ onAddCard }: AddCardModalProps) {
+export default function AddCardModal({ onAddCard, disabled }: AddCardModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
@@ -103,7 +104,7 @@ export default function AddCardModal({ onAddCard }: AddCardModalProps) {
       }
     }}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+        <Button variant="outline" className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={disabled || isGenerating}>
           <Wand2 className="mr-2 h-4 w-4" /> Add New Card
         </Button>
       </DialogTrigger>
@@ -156,3 +157,4 @@ export default function AddCardModal({ onAddCard }: AddCardModalProps) {
     </Dialog>
   );
 }
+
