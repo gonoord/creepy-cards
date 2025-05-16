@@ -46,7 +46,7 @@ export default function HomePage() {
           const nextIndex = (currentIndex + 1) % loadingMessages.length;
           return loadingMessages[nextIndex];
         });
-      }, 2500); // Change message every 2.5 seconds
+      }, 3500); // Change message every 3.5 seconds
       return () => clearInterval(intervalId);
     }
   }, [isLoadingInitialCards, cards.length]);
@@ -151,7 +151,7 @@ export default function HomePage() {
               generatedCount++;
             } catch (error) {
               console.error(`Failed to generate image for card "${card.phrase}" in batch:`, error);
-              updatedCards[cardIndexToProcess] = { ...card, imageGenerated: true };
+              updatedCards[cardIndexToProcess] = { ...card, imageGenerated: true }; // Mark as attempted
             }
           }
         }
@@ -203,11 +203,17 @@ export default function HomePage() {
     const newCard: CreepyCard = {
       ...newCardData,
       id: uuidv4(),
-      imageGenerated: true, 
+      imageGenerated: true, // Newly added cards via modal have their image generated during that process
     };
     setCards((prevCards) => {
       const updatedCards = [...prevCards, newCard];
-      setCurrentIndex(updatedCards.length - 1); 
+      // If adding the first card, or if the list was empty
+      if (updatedCards.length === 1) {
+        setCurrentIndex(0);
+      } else {
+         // Place new card at the end, then go to it.
+        setCurrentIndex(updatedCards.length - 1);
+      }
       return updatedCards;
     });
     triggerAnimation();
@@ -276,3 +282,4 @@ export default function HomePage() {
     </div>
   );
 }
+
