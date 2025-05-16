@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -36,9 +37,10 @@ const generateCreepyImageFlow = ai.defineFlow(
     outputSchema: GenerateCreepyImageOutputSchema,
   },
   async input => {
+    const fullPrompt = `${input.prompt}, in the vibrant, colorful, and spooky art style reminiscent of classic Goosebumps book covers.`;
     const {media} = await ai.generate({
       model: 'googleai/gemini-2.0-flash-exp',
-      prompt: input.prompt,
+      prompt: fullPrompt,
       config: {
         responseModalities: ['TEXT', 'IMAGE'],
       },
@@ -47,3 +49,4 @@ const generateCreepyImageFlow = ai.defineFlow(
     return {imageDataUri: media.url!};
   }
 );
+

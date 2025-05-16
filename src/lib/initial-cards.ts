@@ -31,6 +31,7 @@ const UPFRONT_GENERATION_COUNT = 5;
 
 export async function generateInitialCards(): Promise<CreepyCard[]> {
   const cards: CreepyCard[] = [];
+  const goosebumpsStyleSuffix = ", in the vibrant, colorful, and spooky art style reminiscent of classic Goosebumps book covers.";
   
   for (let i = 0; i < TOTAL_INITIAL_CARDS; i++) {
     const phrase = phrases[i % phrases.length];
@@ -40,7 +41,7 @@ export async function generateInitialCards(): Promise<CreepyCard[]> {
 
     if (i < UPFRONT_GENERATION_COUNT) {
       try {
-        const imageResult = await generateCreepyImage({ prompt: phrase });
+        const imageResult = await generateCreepyImage({ prompt: phrase + goosebumpsStyleSuffix });
         cards.push({
           id: cardId,
           phrase: phrase,
@@ -73,3 +74,4 @@ export async function generateInitialCards(): Promise<CreepyCard[]> {
   }
   return cards;
 }
+
