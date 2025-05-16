@@ -3,21 +3,26 @@ import type { CreepyCard } from '@/types';
 import { generateCreepyImage } from '@/ai/flows/generate-creepy-image';
 
 const phrases = [
-  "The shadows in the corner began to dance.",
-  "A faint whisper echoed from the empty room.",
-  "The old doll's eyes seemed to follow you.",
-  "It was not the wind rattling the windows.",
-  "The reflection in the mirror wasn't smiling.",
-  "Footsteps creaked on the stairs above, but no one was home.",
-  "The phone rang, displaying 'Unknown Caller' from inside the house.",
-  "A child's laughter came from the boarded-up attic.",
-  "The scarecrow in the field moved at dusk.",
-  "Written in dust on the table: 'I'm watching you.'",
-  "The portrait's eyes shifted as you walked by.",
-  "A cold spot lingered in the warmest part of the room.",
-  "The old music box played a song you'd never heard.",
-  "Something scratched from inside the walls.",
-  "The path into the woods vanished behind you.",
+  "Shadows danced in the corner.",
+  "Whispers from an empty room.",
+  "The doll's eyes followed you.",
+  "Not the wind rattling windows.",
+  "Mirror reflection didn't smile.",
+  "Footsteps creaked upstairs, no one home.",
+  "Phone: 'Unknown Caller' from inside.",
+  "Child's laughter from sealed attic.",
+  "Scarecrow moved at dusk.",
+  "Dust writing: 'I'm watching.'",
+  "Portrait's eyes shifted.",
+  "A cold spot lingered.",
+  "Music box played an unknown song.",
+  "Scratching inside the walls.",
+  "Path vanished behind you.",
+  "A face in the static.",
+  "The old swing moved alone.",
+  "It breathed on your neck.",
+  "The nursery rhyme changed.",
+  "Door creaked open, then shut."
 ];
 
 const imageHints = [
@@ -27,7 +32,7 @@ const imageHints = [
 ];
 
 const TOTAL_INITIAL_CARDS = 80;
-const UPFRONT_GENERATION_COUNT = 3; // Reduced from 5 to 3
+const UPFRONT_GENERATION_COUNT = 3;
 
 export async function generateInitialCards(): Promise<CreepyCard[]> {
   const cards: CreepyCard[] = [];
@@ -74,3 +79,4 @@ export async function generateInitialCards(): Promise<CreepyCard[]> {
   }
   return cards;
 }
+
