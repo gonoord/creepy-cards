@@ -3,36 +3,37 @@ import type { CreepyCard } from '@/types';
 import { generateCreepyImage } from '@/ai/flows/generate-creepy-image';
 
 const phrases = [
-  "Shadows danced in the corner.",
-  "Whispers from an empty room.",
-  "The doll's eyes followed you.",
-  "Not the wind rattling windows.",
-  "Mirror reflection didn't smile.",
-  "Footsteps creaked upstairs, no one home.",
-  "Phone: 'Unknown Caller' from inside.",
-  "Child's laughter from sealed attic.",
-  "Scarecrow moved at dusk.",
-  "Dust writing: 'I'm watching.'",
-  "Portrait's eyes shifted.",
-  "A cold spot lingered.",
-  "Music box played an unknown song.",
-  "Scratching inside the walls.",
-  "Path vanished behind you.",
-  "A face in the static.",
-  "The old swing moved alone.",
-  "It breathed on your neck.",
-  "The nursery rhyme changed.",
-  "Door creaked open, then shut."
+  "Static",
+  "Doll",
+  "Mirror",
+  "Whisper",
+  "Footsteps",
+  "Clock",
+  "Shadow",
+  "Key",
+  "Silence",
+  "Portrait",
+  "Cold spot",
+  "Music box",
+  "Scratching",
+  "Empty swing",
+  "The reflection",
+  "Unknown caller",
+  "Scarecrow",
+  "Basement",
+  "Attic",
+  "Locked door"
 ];
 
 const imageHints = [
   "eerie forest", "ghostly figure", "haunted mansion", "creepy doll", "dark silhouette",
   "monster shadow", "abstract horror", "spooky landscape", "ominous object", "spectral face",
-  "abandoned room", "creepy corridor", "glowing eyes", "mysterious door", "twisted tree"
+  "abandoned room", "creepy corridor", "glowing eyes", "mysterious door", "twisted tree",
+  "old photograph", "dusty artifact", "antique toy", "dark cellar", "hidden passage"
 ];
 
 const TOTAL_INITIAL_CARDS = 80;
-const UPFRONT_GENERATION_COUNT = 3;
+const UPFRONT_GENERATION_COUNT = 3; // Generates 3 images upfront
 
 export async function generateInitialCards(): Promise<CreepyCard[]> {
   const cards: CreepyCard[] = [];
@@ -42,7 +43,9 @@ export async function generateInitialCards(): Promise<CreepyCard[]> {
     const phrase = phrases[i % phrases.length];
     const cardId = `initial-${i + 1}`;
     const placeholderImageUrl = `https://placehold.co/600x400.png`;
-    const placeholderAiHint = imageHints[i % imageHints.length];
+    // Use a more specific hint if the phrase is very short, otherwise a general one
+    const placeholderAiHint = phrase.split(" ").length <= 2 ? phrase.toLowerCase() : imageHints[i % imageHints.length];
+
 
     if (i < UPFRONT_GENERATION_COUNT) {
       try {
@@ -79,4 +82,3 @@ export async function generateInitialCards(): Promise<CreepyCard[]> {
   }
   return cards;
 }
-

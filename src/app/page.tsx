@@ -46,7 +46,7 @@ export default function HomePage() {
           const nextIndex = (currentIndex + 1) % loadingMessages.length;
           return loadingMessages[nextIndex];
         });
-      }, 3500); // Change message every 3.5 seconds
+      }, 5000); // Change message every 5 seconds
       return () => clearInterval(intervalId);
     }
   }, [isLoadingInitialCards, cards.length]);
