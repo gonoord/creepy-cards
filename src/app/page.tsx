@@ -50,8 +50,6 @@ export default function HomePage() {
   }, [isLoadingInitialCards, cards.length]);
 
   const loadCoreCards = useCallback(async (isShuffle = false) => {
-    // Removed toast for starting generation here, handled by generateNextBatchIfNeeded
-    
     const initialGeneratedCards = await generateInitialCards();
     
     let userCards: CreepyCard[] = [];
@@ -73,7 +71,7 @@ export default function HomePage() {
     setCurrentIndex(0);
     setAnimationKey(prevKey => prevKey + 1);
 
-    if (initialGeneratedCards.length > 0 && !isShuffle) { // Only show initial ready toast if not shuffling and cards were generated
+    if (initialGeneratedCards.length > 0 && !isShuffle) {
        toast({
         title: "The First Visions Are Ready",
         description: "Initial creepy cards have been summoned. More will appear as you explore.",
@@ -150,7 +148,6 @@ export default function HomePage() {
                 generatedCount++;
               } catch (error) {
                 console.error(`Failed to generate image for card "${card.phrase}" in batch:`, error);
-                // Mark as generated even on failure to prevent retrying indefinitely for a consistently failing image
                 updatedCards[cardIndexToProcess] = { ...card, imageGenerated: true }; 
               }
             }
@@ -184,7 +181,7 @@ export default function HomePage() {
     };
 
     generateNextBatchIfNeeded();
-  }, [currentIndex, cards, isLoadingInitialCards, isGeneratingBatch, toast]);
+  }, [currentIndex, cards, isLoadingInitialCards, toast]); // Removed isGeneratingBatch from dependencies
 
 
   const triggerAnimation = () => {
@@ -192,22 +189,22 @@ export default function HomePage() {
   };
 
   const handleNext = useCallback(() => {
-    if (cards.length === 0) return;
+    if (cards.length === 0 || isGeneratingBatch || isLoadingInitialCards) return;
     setCurrentIndex((prevIndex) => (prevIndex + 1) % cards.length);
     triggerAnimation();
-  }, [cards.length]);
+  }, [cards.length, isGeneratingBatch, isLoadingInitialCards]);
 
   const handlePrev = useCallback(() => {
-    if (cards.length === 0) return;
+    if (cards.length === 0 || isGeneratingBatch || isLoadingInitialCards) return;
     setCurrentIndex((prevIndex) => (prevIndex - 1 + cards.length) % cards.length);
     triggerAnimation();
-  }, [cards.length]);
+  }, [cards.length, isGeneratingBatch, isLoadingInitialCards]);
 
   const handleGoToStart = useCallback(() => {
-    if (cards.length === 0) return;
+    if (cards.length === 0 || isGeneratingBatch || isLoadingInitialCards) return;
     setCurrentIndex(0);
     triggerAnimation();
-  }, [cards.length]);
+  }, [cards.length, isGeneratingBatch, isLoadingInitialCards]);
 
   const handleAddCard = useCallback((newCardData: Omit<CreepyCard, 'id' | 'imageGenerated'>) => {
     const newCard: CreepyCard = {
@@ -220,7 +217,7 @@ export default function HomePage() {
       if (updatedCards.length === 1) {
         setCurrentIndex(0);
       } else {
-        setCurrentIndex(updatedCards.length - 1); // Go to the newly added card
+        setCurrentIndex(updatedCards.length - 1); 
       }
       return updatedCards;
     });
@@ -247,7 +244,7 @@ export default function HomePage() {
   }, [toast, loadCoreCards]);
 
 
-  if (isLoadingInitialCards || (cards.length === 0 && !isGeneratingBatch)) {
+  if (isLoadingInitialCards || (cards.length === 0 && !isGeneratingBatch && !isLoadingInitialCards )) { // Adjusted condition slightly
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-foreground">
         <Ghost className="w-20 h-20 text-primary mb-6 float-ghost" />
@@ -259,7 +256,7 @@ export default function HomePage() {
     );
   }
   
-  if (cards.length === 0 && !isLoadingInitialCards) {
+  if (cards.length === 0 && !isLoadingInitialCards && !isGeneratingBatch) { // Ensure batch generation isn't active
      return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-foreground">
         <Ghost className="w-16 h-16 text-primary mb-4" />
@@ -275,6 +272,7 @@ export default function HomePage() {
   }
   
   const currentCard = cards[currentIndex] || null;
+  const buttonsDisabled = isLoadingInitialCards || isGeneratingBatch;
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-background p-4 sm:p-8 selection:bg-accent selection:text-accent-foreground">
@@ -299,20 +297,20 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-3 gap-4 w-full max-w-md mb-8">
-          <Button onClick={handlePrev} variant="secondary" className="text-lg py-6" disabled={isLoadingInitialCards || isGeneratingBatch}>
+          <Button onClick={handlePrev} variant="secondary" className="text-lg py-6" disabled={buttonsDisabled}>
             <ArrowLeft className="h-6 w-6 mr-2" /> Previous
           </Button>
-          <Button onClick={handleGoToStart} variant="secondary" className="text-lg py-6" disabled={isLoadingInitialCards || isGeneratingBatch}>
+          <Button onClick={handleGoToStart} variant="secondary" className="text-lg py-6" disabled={buttonsDisabled}>
             <HomeIcon className="h-6 w-6 mr-2" /> Start
           </Button>
-          <Button onClick={handleNext} variant="secondary" className="text-lg py-6" disabled={isLoadingInitialCards || isGeneratingBatch}>
+          <Button onClick={handleNext} variant="secondary" className="text-lg py-6" disabled={buttonsDisabled}>
             <ArrowRight className="h-6 w-6 mr-2" /> Next
           </Button>
         </div>
         
         <div className="w-full max-w-md flex justify-center gap-4">
             <AddCardModal onAddCard={handleAddCard} />
-            <Button onClick={handleShuffle} variant="outline" disabled={isLoadingInitialCards || isGeneratingBatch}>
+            <Button onClick={handleShuffle} variant="outline" disabled={buttonsDisabled}>
                 <Shuffle className="mr-2 h-4 w-4" /> Shuffle Deck
             </Button>
         </div>
