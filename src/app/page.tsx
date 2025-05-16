@@ -172,7 +172,7 @@ export default function HomePage() {
     };
 
     generateNextBatchIfNeeded();
-  }, [currentIndex, cards, isLoadingInitialCards, toast]);
+  }, [currentIndex, cards, isLoadingInitialCards]);
 
 
   const triggerAnimation = () => {
@@ -186,10 +186,10 @@ export default function HomePage() {
   }, [cards.length, isLoadingInitialCards, isGeneratingBatch]);
 
   const handlePrev = useCallback(() => {
-    if (cards.length === 0) return;
+    if (cards.length === 0 || currentIndex === 0) return; // Also check currentIndex
     setCurrentIndex((prevIndex) => (prevIndex - 1 + cards.length) % cards.length);
     triggerAnimation();
-  }, [cards.length]);
+  }, [cards.length, currentIndex]);
 
   const handleGoToStart = useCallback(() => {
     if (cards.length === 0) return;
@@ -235,7 +235,10 @@ export default function HomePage() {
   }, [toast, loadCoreCards]);
 
   // More granular disabled states
-  const criticalActionDisabled = isLoadingInitialCards || isGeneratingBatch;
+  const nextOrAddDisabled = isLoadingInitialCards || isGeneratingBatch || cards.length === 0;
+  const prevDisabled = cards.length === 0 || currentIndex === 0;
+  const startDisabled = cards.length === 0;
+  const shuffleDisabled = isLoadingInitialCards;
 
 
   if (isLoadingInitialCards || (cards.length === 0 && !isGeneratingBatch && !isLoadingInitialCards )) {
@@ -256,8 +259,8 @@ export default function HomePage() {
         <Ghost className="w-16 h-16 text-primary mb-4" />
         <p className="text-xl mb-4">The void is empty... for now.</p>
         <div className="flex gap-4">
-            <AddCardModal onAddCard={handleAddCard} disabled={criticalActionDisabled} />
-            <Button onClick={handleShuffle} variant="outline" disabled={isLoadingInitialCards}>
+            <AddCardModal onAddCard={handleAddCard} disabled={nextOrAddDisabled} />
+            <Button onClick={handleShuffle} variant="outline" disabled={shuffleDisabled}>
                 <Shuffle className="mr-2 h-4 w-4" /> Shuffle Deck
             </Button>
         </div>
@@ -291,20 +294,20 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-3 gap-4 w-full max-w-md mb-8">
-          <Button onClick={handlePrev} variant="secondary" className="text-lg py-6" disabled={cards.length === 0}>
+          <Button onClick={handlePrev} variant="secondary" className="text-lg py-6" disabled={prevDisabled}>
             <ArrowLeft className="h-6 w-6 mr-2" /> Previous
           </Button>
-          <Button onClick={handleGoToStart} variant="secondary" className="text-lg py-6" disabled={cards.length === 0}>
+          <Button onClick={handleGoToStart} variant="secondary" className="text-lg py-6" disabled={startDisabled}>
             <HomeIcon className="h-6 w-6 mr-2" /> Start
           </Button>
-          <Button onClick={handleNext} variant="secondary" className="text-lg py-6" disabled={criticalActionDisabled || cards.length === 0}>
+          <Button onClick={handleNext} variant="secondary" className="text-lg py-6" disabled={nextOrAddDisabled}>
             <ArrowRight className="h-6 w-6 mr-2" /> Next
           </Button>
         </div>
         
         <div className="w-full max-w-md flex justify-center gap-4">
-            <AddCardModal onAddCard={handleAddCard} disabled={criticalActionDisabled} />
-            <Button onClick={handleShuffle} variant="outline" disabled={isLoadingInitialCards}>
+            <AddCardModal onAddCard={handleAddCard} disabled={nextOrAddDisabled} />
+            <Button onClick={handleShuffle} variant="outline" disabled={shuffleDisabled}>
                 <Shuffle className="mr-2 h-4 w-4" /> Shuffle Deck
             </Button>
         </div>
