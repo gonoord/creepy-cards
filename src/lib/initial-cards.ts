@@ -1,4 +1,6 @@
+
 import type { CreepyCard } from '@/types';
+import { generateCreepyImage } from '@/ai/flows/generate-creepy-image';
 
 const phrases = [
   "The shadows in the corner began to dance.",
@@ -24,16 +26,33 @@ const imageHints = [
   "abandoned room", "creepy corridor", "glowing eyes", "mysterious door", "twisted tree"
 ];
 
-export function generateInitialCards(): CreepyCard[] {
+export async function generateInitialCards(): Promise<CreepyCard[]> {
   const cards: CreepyCard[] = [];
+  // Generating images for many cards on load can be very slow.
+  // Consider reducing the number for better user experience or using placeholders first.
   for (let i = 0; i < 80; i++) {
-    cards.push({
-      id: `initial-${i + 1}`,
-      phrase: phrases[i % phrases.length],
-      imageUrl: `https://placehold.co/600x400.png`, // Standard placeholder size
-      isAIGenerated: false,
-      aiHint: imageHints[i % imageHints.length]
-    });
+    const phrase = phrases[i % phrases.length];
+    try {
+      // Use the card's phrase as the prompt for image generation
+      const imageResult = await generateCreepyImage({ prompt: phrase });
+      cards.push({
+        id: `initial-${i + 1}`,
+        phrase: phrase,
+        imageUrl: imageResult.imageDataUri,
+        isAIGenerated: true,
+        // aiHint is generally for placeholders or can be a generic hint for AI generated images
+      });
+    } catch (error) {
+      console.error(`Failed to generate image for card with phrase "${phrase}":`, error);
+      // Fallback to a placeholder image if generation fails
+      cards.push({
+        id: `initial-${i + 1}`,
+        phrase: phrase,
+        imageUrl: `https://placehold.co/600x400.png`,
+        isAIGenerated: false,
+        aiHint: imageHints[i % imageHints.length] // Use original hint for fallback
+      });
+    }
   }
   return cards;
 }
