@@ -104,7 +104,7 @@ export default function HomePage() {
           description: `Generating images for the next batch, starting with card #${firstCardNeedingGenerationIndex + 1}.`,
         });
 
-        const batchSize = 5;
+        const batchSize = 3; // Changed batch size from 5 to 3
         const updatedCards = [...cards];
         let generatedCount = 0;
 
@@ -228,14 +228,14 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-3 gap-4 w-full max-w-md mb-8">
-          <Button onClick={handlePrev} variant="outline" className="text-lg py-6 bg-card hover:bg-card/80 border-primary/50 text-primary hover:text-primary/90">
-            <ArrowLeft className="h-6 w-6" />
+          <Button onClick={handlePrev} variant="secondary" className="text-lg py-6">
+            <ArrowLeft className="h-6 w-6" /> Previous
           </Button>
-          <Button onClick={handleGoToStart} variant="outline" className="text-lg py-6 bg-card hover:bg-card/80 border-primary/50 text-primary hover:text-primary/90">
-            <HomeIcon className="h-6 w-6" />
+          <Button onClick={handleGoToStart} variant="secondary" className="text-lg py-6">
+            <HomeIcon className="h-6 w-6" /> Start
           </Button>
-          <Button onClick={handleNext} variant="outline" className="text-lg py-6 bg-card hover:bg-card/80 border-primary/50 text-primary hover:text-primary/90">
-            <ArrowRight className="h-6 w-6" />
+          <Button onClick={handleNext} variant="secondary" className="text-lg py-6">
+            <ArrowRight className="h-6 w-6" /> Next
           </Button>
         </div>
         
@@ -250,3 +250,4 @@ export default function HomePage() {
     </div>
   );
 }
+
