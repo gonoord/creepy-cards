@@ -43,10 +43,33 @@ const generateCreepyImageFlow = ai.defineFlow(
       prompt: fullPrompt,
       config: {
         responseModalities: ['TEXT', 'IMAGE'],
+        safetySettings: [
+          {
+            category: 'HARM_CATEGORY_HATE_SPEECH',
+            threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+          },
+          {
+            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+          },
+          {
+            category: 'HARM_CATEGORY_HARASSMENT',
+            threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+          },
+          {
+            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            threshold: 'BLOCK_MEDIUM_AND_ABOVE', 
+          },
+        ],
       },
     });
 
-    return {imageDataUri: media.url!};
+    if (!media || !media.url) {
+      console.error('Image generation failed: No media object or URL returned.', {prompt: fullPrompt, media});
+      throw new Error('Image generation failed to return a valid image. The spirits are uncooperative!');
+    }
+
+    return {imageDataUri: media.url};
   }
 );
 
