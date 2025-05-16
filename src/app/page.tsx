@@ -39,11 +39,7 @@ export default function HomePage() {
   useEffect(() => {
     if (isLoadingInitialCards && cards.length === 0) {
       const intervalId = setInterval(() => {
-        setCurrentLoadingMessage(prevMessage => {
-          const currentIndexVal = loadingMessages.indexOf(prevMessage);
-          const nextIndex = (currentIndexVal + 1) % loadingMessages.length;
-          return loadingMessages[nextIndex];
-        });
+        setCurrentLoadingMessage(loadingMessages[Math.floor(Math.random() * loadingMessages.length)]);
       }, 5000); // Cycle messages every 5 seconds
       return () => clearInterval(intervalId);
     }
@@ -148,7 +144,8 @@ export default function HomePage() {
                 generatedCount++;
               } catch (error) {
                 console.error(`Failed to generate image for card "${card.phrase}" in batch:`, error);
-                updatedCards[cardIndexToProcess] = { ...card, imageGenerated: true }; 
+                // Mark as generated (even if failed) to prevent re-attempts for this session, but keep placeholder
+                updatedCards[cardIndexToProcess] = { ...card, imageGenerated: true, imageUrl: card.imageUrl || 'https://placehold.co/600x400.png' }; 
               }
             }
           }
@@ -160,13 +157,8 @@ export default function HomePage() {
               title: "More Entities Have Manifested",
               description: `${generatedCount} new card images materialized.`,
             });
-          } else if (firstCardNeedingGenerationIndex !== -1) { 
-             toast({
-              title: "The Veil Remains Thin",
-              description: `Attempted to summon more images, but the spirits are quiet for now.`,
-              variant: "default"
-            });
           }
+          
         } catch (e) {
           console.error("Unexpected error during batch image generation:", e);
           toast({
@@ -181,7 +173,7 @@ export default function HomePage() {
     };
 
     generateNextBatchIfNeeded();
-  }, [currentIndex, cards, isLoadingInitialCards, toast]); // Removed isGeneratingBatch from dependencies
+  }, [currentIndex, cards, isLoadingInitialCards, toast]);
 
 
   const triggerAnimation = () => {
@@ -189,22 +181,22 @@ export default function HomePage() {
   };
 
   const handleNext = useCallback(() => {
-    if (cards.length === 0 || isGeneratingBatch || isLoadingInitialCards) return;
+    if (cards.length === 0 || isLoadingInitialCards || isGeneratingBatch) return;
     setCurrentIndex((prevIndex) => (prevIndex + 1) % cards.length);
     triggerAnimation();
-  }, [cards.length, isGeneratingBatch, isLoadingInitialCards]);
+  }, [cards.length, isLoadingInitialCards, isGeneratingBatch]);
 
   const handlePrev = useCallback(() => {
-    if (cards.length === 0 || isGeneratingBatch || isLoadingInitialCards) return;
+    if (cards.length === 0 || isLoadingInitialCards || isGeneratingBatch) return;
     setCurrentIndex((prevIndex) => (prevIndex - 1 + cards.length) % cards.length);
     triggerAnimation();
-  }, [cards.length, isGeneratingBatch, isLoadingInitialCards]);
+  }, [cards.length, isLoadingInitialCards, isGeneratingBatch]);
 
   const handleGoToStart = useCallback(() => {
-    if (cards.length === 0 || isGeneratingBatch || isLoadingInitialCards) return;
+    if (cards.length === 0 || isLoadingInitialCards || isGeneratingBatch) return;
     setCurrentIndex(0);
     triggerAnimation();
-  }, [cards.length, isGeneratingBatch, isLoadingInitialCards]);
+  }, [cards.length, isLoadingInitialCards, isGeneratingBatch]);
 
   const handleAddCard = useCallback((newCardData: Omit<CreepyCard, 'id' | 'imageGenerated'>) => {
     const newCard: CreepyCard = {
@@ -226,7 +218,7 @@ export default function HomePage() {
 
   const handleShuffle = useCallback(async () => {
     setIsLoadingInitialCards(true);
-    setCurrentLoadingMessage(loadingMessages[0]); 
+    setCurrentLoadingMessage(loadingMessages[Math.floor(Math.random() * loadingMessages.length)]); 
     setCards([]); 
     setCurrentIndex(0);
 
@@ -243,8 +235,9 @@ export default function HomePage() {
 
   }, [toast, loadCoreCards]);
 
+  const buttonsDisabled = isLoadingInitialCards || isGeneratingBatch;
 
-  if (isLoadingInitialCards || (cards.length === 0 && !isGeneratingBatch && !isLoadingInitialCards )) { // Adjusted condition slightly
+  if (isLoadingInitialCards || (cards.length === 0 && !isGeneratingBatch && !isLoadingInitialCards )) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-foreground">
         <Ghost className="w-20 h-20 text-primary mb-6 float-ghost" />
@@ -256,14 +249,14 @@ export default function HomePage() {
     );
   }
   
-  if (cards.length === 0 && !isLoadingInitialCards && !isGeneratingBatch) { // Ensure batch generation isn't active
+  if (cards.length === 0 && !isLoadingInitialCards && !isGeneratingBatch) {
      return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-foreground">
         <Ghost className="w-16 h-16 text-primary mb-4" />
         <p className="text-xl mb-4">The void is empty... for now.</p>
         <div className="flex gap-4">
             <AddCardModal onAddCard={handleAddCard} />
-            <Button onClick={handleShuffle} variant="outline" disabled={isLoadingInitialCards || isGeneratingBatch}>
+            <Button onClick={handleShuffle} variant="outline" disabled={buttonsDisabled}>
                 <Shuffle className="mr-2 h-4 w-4" /> Shuffle Deck
             </Button>
         </div>
@@ -272,7 +265,7 @@ export default function HomePage() {
   }
   
   const currentCard = cards[currentIndex] || null;
-  const buttonsDisabled = isLoadingInitialCards || isGeneratingBatch;
+
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-background p-4 sm:p-8 selection:bg-accent selection:text-accent-foreground">
@@ -322,4 +315,3 @@ export default function HomePage() {
     </div>
   );
 }
-
